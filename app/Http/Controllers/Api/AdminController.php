@@ -1,0 +1,181 @@
+<?php
+
+namespace App\Http\Controllers\Api;
+
+use App\Http\Controllers\Controller;
+use App\Models\Order;
+use App\Models\Service;
+use App\Models\Ticket;
+use App\Models\Transaction;
+use App\Models\User;
+use Illuminate\Http\Request;
+
+class AdminController extends Controller
+{
+    public function dashboard()
+    {
+        return response()->json([
+            'total_orders' => Order::count(),
+            'completed_orders' => Order::where('status', 'completed')->count(),
+            'pending_orders' => Order::where('status', 'pending')->count(),
+            'cancelled_orders' => Order::where('status', 'cancelled')->count(),
+            'total_revenue' => Order::where('status', 'completed')->sum('charge'),
+            'total_users' => User::where('role', 'user')->count(),
+            'active_services' => Service::where('is_active', true)->count(),
+            'open_tickets' => Ticket::where('status', 'open')->count(),
+        ]);
+    }
+
+    public function services(Request $request)
+    {
+        $query = Service::query();
+        if ($request->search) {
+            $query->where('name', 'like', '%' . $request->search . '%');
+        }
+        return $query->latest()->get();
+    }
+
+    public function storeService(Request $request)
+    {
+        $data = $request->validate([
+            'name' => 'required|string|max:255',
+            'platform' => 'required|string|max:50',
+            'category' => 'required|string|max:50',
+            'rate' => 'required|numeric|min:0',
+            'min_quantity' => 'required|integer|min:1',
+            'max_quantity' => 'required|integer|min:1',
+            'description' => 'nullable|string',
+            'is_active' => 'boolean',
+        ]);
+
+        return Service::create($data);
+    }
+
+    public function updateService(Request $request, Service $service)
+    {
+        $data = $request->validate([
+            'name' => 'sometimes|string|max:255',
+            'platform' => 'sometimes|string|max:50',
+            'category' => 'sometimes|string|max:50',
+            'rate' => 'sometimes|numeric|min:0',
+            'min_quantity' => 'sometimes|integer|min:1',
+            'max_quantity' => 'sometimes|integer|min:1',
+            'description' => 'nullable|string',
+            'is_active' => 'boolean',
+        ]);
+
+        $service->update($data);
+        return $service;
+    }
+
+    public function destroyService(Service $service)
+    {
+        $service->delete();
+        return response()->json(['message' => 'Deleted.']);
+    }
+
+    public function orders(Request $request)
+    {
+        $query = Order::with(['user', 'service']);
+        if ($request->status) {
+            $query->where('status', $request->status);
+        }
+        if ($request->search) {
+            $query->where(function ($q) use ($request) {
+                $q->where('id', 'like', '%' . $request->search . '%')
+                  ->orWhereHas('user', fn($u) => $u->where('name', 'like', '%' . $request->search . '%'))
+                  ->orWhereHas('service', fn($s) => $s->where('name', 'like', '%' . $request->search . '%'));
+            });
+        }
+        return $query->latest()->get();
+    }
+
+    public function updateOrder(Request $request, Order $order)
+    {
+        $data = $request->validate([
+            'status' => 'required|in:pending,processing,completed,cancelled',
+        ]);
+
+        $order->update($data);
+
+        if ($data['status'] === 'completed') {
+            $user = $order->user;
+            $user->total_spent += $order->charge;
+            $user->save();
+        }
+
+        return $order->load(['user', 'service']);
+    }
+
+    public function tickets(Request $request)
+    {
+        $query = Ticket::with('user');
+        if ($request->status) {
+            $query->where('status', $request->status);
+        }
+        if ($request->search) {
+            $query->where(function ($q) use ($request) {
+                $q->where('subject', 'like', '%' . $request->search . '%')
+                  ->orWhereHas('user', fn($u) => $u->where('name', 'like', '%' . $request->search . '%'));
+            });
+        }
+        return $query->latest()->get();
+    }
+
+    public function updateTicket(Request $request, Ticket $ticket)
+    {
+        $data = $request->validate([
+            'status' => 'required|in:open,closed',
+        ]);
+        $ticket->update($data);
+        return $ticket->load('user');
+    }
+
+    public function users(Request $request)
+    {
+        $query = User::where('role', 'user');
+        if ($request->search) {
+            $query->where(function ($q) use ($request) {
+                $q->where('name', 'like', '%' . $request->search . '%')
+                  ->orWhere('username', 'like', '%' . $request->search . '%')
+                  ->orWhere('email', 'like', '%' . $request->search . '%');
+            });
+        }
+        return $query->latest()->get();
+    }
+
+    public function updateUser(Request $request, User $user)
+    {
+        $data = $request->validate([
+            'status' => 'required|in:active,suspended,inactive',
+        ]);
+        $user->update($data);
+        return $user;
+    }
+
+    public function transactions(Request $request)
+    {
+        $query = Transaction::with('user');
+        if ($request->status) {
+            $query->where('status', $request->status);
+        }
+        return $query->latest()->get();
+    }
+
+    public function updateTransaction(Request $request, Transaction $transaction)
+    {
+        $data = $request->validate([
+            'status' => 'required|in:pending,completed,failed',
+        ]);
+
+        $transaction->update($data);
+
+        if ($data['status'] === 'completed' && $transaction->status !== 'completed') {
+            $user = $transaction->user;
+            $user->balance += $transaction->amount;
+            $user->save();
+        }
+
+        return $transaction->load('user');
+    }
+}
