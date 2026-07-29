@@ -17,6 +17,7 @@ Route::post('/login', [AuthController::class, 'login']);
 Route::get('/services', [ServiceController::class, 'index']);
 Route::get('/services/{service}', [ServiceController::class, 'show']);
 Route::get('/settings/min-deposit', [SettingController::class, 'minDeposit']);
+Route::get('/settings/whatsapp', [SettingController::class, 'whatsapp']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
