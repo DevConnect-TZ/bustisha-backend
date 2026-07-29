@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Setting;
 use App\Models\Transaction;
 use Illuminate\Http\Request;
 
@@ -15,9 +16,12 @@ class TransactionController extends Controller
 
     public function store(Request $request)
     {
+        $minDeposit = (float) Setting::getValue('min_deposit', 1000);
+
         $data = $request->validate([
             'method' => 'required|string|max:50',
-            'amount' => 'required|numeric|min:10000',
+            'phone' => 'required|string|max:20',
+            'amount' => 'required|numeric|min:' . $minDeposit,
         ]);
 
         $txn = Transaction::create([

@@ -7,6 +7,8 @@ use App\Http\Controllers\Api\TicketController;
 use App\Http\Controllers\Api\TransactionController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\AdminController;
+use App\Http\Controllers\Api\ProviderController;
+use App\Http\Controllers\Api\SettingController;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/register', [AuthController::class, 'register']);
@@ -14,6 +16,7 @@ Route::post('/login', [AuthController::class, 'login']);
 
 Route::get('/services', [ServiceController::class, 'index']);
 Route::get('/services/{service}', [ServiceController::class, 'show']);
+Route::get('/settings/min-deposit', [SettingController::class, 'minDeposit']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
@@ -51,5 +54,16 @@ Route::middleware('auth:sanctum')->group(function () {
 
         Route::get('/transactions', [AdminController::class, 'transactions']);
         Route::put('/transactions/{transaction}', [AdminController::class, 'updateTransaction']);
+
+        Route::get('/providers', [ProviderController::class, 'index']);
+        Route::post('/providers', [ProviderController::class, 'store']);
+        Route::put('/providers/{provider}', [ProviderController::class, 'update']);
+        Route::delete('/providers/{provider}', [ProviderController::class, 'destroy']);
+        Route::post('/providers/{provider}/balance', [ProviderController::class, 'balance']);
+        Route::post('/providers/{provider}/fetch-services', [ProviderController::class, 'fetchServices']);
+
+        Route::get('/settings', [SettingController::class, 'index']);
+        Route::put('/settings', [SettingController::class, 'update']);
     });
+
 });
