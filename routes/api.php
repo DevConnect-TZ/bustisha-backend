@@ -32,6 +32,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/tickets', [TicketController::class, 'index']);
     Route::post('/tickets', [TicketController::class, 'store']);
     Route::get('/tickets/{ticket}', [TicketController::class, 'show']);
+    Route::post('/tickets/{ticket}/reply', [TicketController::class, 'reply']);
 
     Route::get('/transactions', [TransactionController::class, 'index']);
     Route::post('/transactions', [TransactionController::class, 'store']);
@@ -49,6 +50,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
         Route::get('/tickets', [AdminController::class, 'tickets']);
         Route::put('/tickets/{ticket}', [AdminController::class, 'updateTicket']);
+        Route::post('/tickets/{ticket}/reply', [AdminController::class, 'replyTicket']);
 
         Route::get('/users', [AdminController::class, 'users']);
         Route::put('/users/{user}', [AdminController::class, 'updateUser']);

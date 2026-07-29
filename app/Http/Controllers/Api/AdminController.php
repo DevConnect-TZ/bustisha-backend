@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\Service;
 use App\Models\Ticket;
+use App\Models\TicketReply;
 use App\Models\Transaction;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -109,7 +110,7 @@ class AdminController extends Controller
 
     public function tickets(Request $request)
     {
-        $query = Ticket::with('user');
+        $query = Ticket::with('user', 'replies.user');
         if ($request->status) {
             $query->where('status', $request->status);
         }
@@ -125,10 +126,27 @@ class AdminController extends Controller
     public function updateTicket(Request $request, Ticket $ticket)
     {
         $data = $request->validate([
-            'status' => 'required|in:open,closed',
+            'status' => 'required|in:pending,replied,closed',
         ]);
         $ticket->update($data);
-        return $ticket->load('user');
+        return $ticket->load('user', 'replies.user');
+    }
+
+    public function replyTicket(Request $request, Ticket $ticket)
+    {
+        $data = $request->validate([
+            'message' => 'required|string',
+        ]);
+
+        $reply = TicketReply::create([
+            'ticket_id' => $ticket->id,
+            'user_id' => $request->user()->id,
+            'message' => $data['message'],
+        ]);
+
+        $ticket->update(['status' => 'replied']);
+
+        return response()->json($reply->load('user'), 201);
     }
 
     public function users(Request $request)
