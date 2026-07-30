@@ -4,14 +4,18 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration {
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
     public function up(): void
     {
         Schema::table('transactions', function (Blueprint $table) {
             $table->string('gateway')->nullable()->after('method');
             $table->string('gateway_status')->nullable()->after('status');
-            $table->string('gateway_transaction_id')->nullable()->after('reference');
-            $table->timestamp('credited_at')->nullable()->after('gateway_status');
+            $table->string('gateway_transaction_id')->nullable()->after('gateway_status');
+            $table->timestamp('credited_at')->nullable()->after('gateway_transaction_id');
         });
     }
 
