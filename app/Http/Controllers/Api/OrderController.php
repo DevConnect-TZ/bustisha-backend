@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\Service;
 use App\Models\User;
+use App\Services\OrderService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -71,6 +72,8 @@ class OrderController extends Controller
             'charge' => $charge,
             'status' => 'pending',
         ]);
+
+        $order = app(OrderService::class)->place($order);
 
         return response()->json($order->load('service'), 201);
     }
