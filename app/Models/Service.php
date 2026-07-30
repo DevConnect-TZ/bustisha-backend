@@ -11,6 +11,7 @@ class Service extends Model
 
     protected $fillable = [
         'name', 'platform', 'category', 'rate', 'min_quantity', 'max_quantity', 'description', 'is_active',
+        'provider_id', 'provider_service_id',
     ];
 
     protected function casts(): array
@@ -22,4 +23,5 @@ class Service extends Model
     }
 
     public function orders() { return $this->hasMany(Order::class); }
+    public function provider() { return $this->belongsTo(\App\Models\Provider::class); }
 }

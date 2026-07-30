@@ -69,6 +69,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/providers/{provider}', [ProviderController::class, 'destroy']);
         Route::post('/providers/{provider}/balance', [ProviderController::class, 'balance']);
         Route::post('/providers/{provider}/preview-services', [ProviderController::class, 'previewServices']);
+        Route::post('/providers/{provider}/lookup-service', [ProviderController::class, 'lookupService']);
         Route::post('/providers/{provider}/import-services', [ProviderController::class, 'importServices']);
         Route::post('/providers/{provider}/fetch-services', [ProviderController::class, 'fetchServices']);
 

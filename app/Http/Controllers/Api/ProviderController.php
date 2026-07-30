@@ -4,11 +4,17 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Provider;
+use App\Models\Setting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 
 class ProviderController extends Controller
 {
+    private function convertRate(float $rate): float
+    {
+        $conversionRate = (float) Setting::getValue('conversion_rate', 2600);
+        return round($rate * $conversionRate, 2);
+    }
     public function index()
     {
         return Provider::latest()->get();
@@ -96,7 +102,7 @@ class ProviderController extends Controller
                 $result[] = [
                     'provider_service_id' => $serviceId,
                     'name' => $name,
-                    'rate' => $rate,
+                    'rate' => $this->convertRate((float) $rate),
                     'min' => (int) $min,
                     'max' => (int) $max,
                     'category' => $category,
@@ -105,6 +111,46 @@ class ProviderController extends Controller
             }
 
             return response()->json($result);
+        } catch (\Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
+
+    public function lookupService(Request $request, Provider $provider)
+    {
+        $data = $request->validate([
+            'provider_service_id' => 'required|string|max:255',
+        ]);
+
+        try {
+            $response = Http::asForm()->post(rtrim($provider->api_url, '/'), [
+                'key' => $provider->api_key,
+                'action' => 'services',
+            ]);
+
+            $services = $response->json();
+
+            if (!is_array($services) || isset($services['error'])) {
+                return response()->json(['error' => $services['error'] ?? 'Invalid response'], 422);
+            }
+
+            $targetId = $data['provider_service_id'];
+            foreach ($services as $svc) {
+                $serviceId = $svc['service'] ?? $svc['id'] ?? null;
+                if ((string) $serviceId === (string) $targetId) {
+                    $rate = $svc['rate'] ?? $svc['price'] ?? 0;
+                    return response()->json([
+                        'provider_service_id' => $serviceId,
+                        'name' => $svc['name'] ?? 'Unknown',
+                        'rate' => $this->convertRate((float) $rate),
+                        'min' => (int) ($svc['min'] ?? $svc['min_quantity'] ?? 1),
+                        'max' => (int) ($svc['max'] ?? $svc['max_quantity'] ?? 999999),
+                        'category' => $svc['category'] ?? 'General',
+                    ]);
+                }
+            }
+
+            return response()->json(['error' => 'Service not found on provider.'], 404);
         } catch (\Exception $e) {
             return response()->json(['error' => $e->getMessage()], 500);
         }

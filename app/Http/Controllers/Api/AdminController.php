@@ -30,7 +30,7 @@ class AdminController extends Controller
 
     public function services(Request $request)
     {
-        $query = Service::query();
+        $query = Service::with('provider');
         if ($request->search) {
             $query->where('name', 'like', '%' . $request->search . '%');
         }
@@ -48,6 +48,8 @@ class AdminController extends Controller
             'max_quantity' => 'required|integer|min:1',
             'description' => 'nullable|string',
             'is_active' => 'boolean',
+            'provider_id' => 'nullable|integer|exists:providers,id',
+            'provider_service_id' => 'nullable|string|max:255',
         ]);
 
         return Service::create($data);
@@ -64,6 +66,8 @@ class AdminController extends Controller
             'max_quantity' => 'sometimes|integer|min:1',
             'description' => 'nullable|string',
             'is_active' => 'boolean',
+            'provider_id' => 'nullable|integer|exists:providers,id',
+            'provider_service_id' => 'nullable|string|max:255',
         ]);
 
         $service->update($data);
