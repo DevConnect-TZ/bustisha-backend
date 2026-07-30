@@ -18,6 +18,9 @@ class SettingController extends Controller
         $data = $request->validate([
             'min_deposit' => 'sometimes|numeric|min:100',
             'whatsapp_number' => 'nullable|string|max:20',
+            'conversion_rate' => 'sometimes|numeric|min:1',
+            'categories' => 'nullable|string',
+            'platforms' => 'nullable|string',
             'mobilipa_enabled' => 'sometimes|boolean',
             'mobilipa_api_key' => 'nullable|string|max:255',
             'mobilipa_api_secret' => 'nullable|string|max:255',
@@ -26,7 +29,7 @@ class SettingController extends Controller
             'sonicpesa_api_secret' => 'nullable|string|max:255',
         ]);
 
-        $keys = ['min_deposit', 'whatsapp_number', 'mobilipa_enabled', 'mobilipa_api_key', 'mobilipa_api_secret', 'sonicpesa_enabled', 'sonicpesa_api_key', 'sonicpesa_api_secret'];
+        $keys = ['min_deposit', 'whatsapp_number', 'conversion_rate', 'categories', 'platforms', 'mobilipa_enabled', 'mobilipa_api_key', 'mobilipa_api_secret', 'sonicpesa_enabled', 'sonicpesa_api_key', 'sonicpesa_api_secret'];
         foreach ($keys as $key) {
             if (array_key_exists($key, $data)) {
                 Setting::updateOrCreate(['key' => $key], ['value' => $data[$key] ?? '']);
@@ -34,6 +37,17 @@ class SettingController extends Controller
         }
 
         return response()->json(['message' => 'Settings updated.']);
+    }
+
+    public function getMetadata()
+    {
+        $rawCategories = Setting::getValue('categories', '');
+        $rawPlatforms = Setting::getValue('platforms', '');
+
+        return response()->json([
+            'categories' => $rawCategories ? array_map('trim', explode(',', $rawCategories)) : ['Followers', 'Likes', 'Comments', 'Views', 'Subscribers', 'Members', 'Plays', 'Shares'],
+            'platforms' => $rawPlatforms ? array_map('trim', explode(',', $rawPlatforms)) : [],
+        ]);
     }
 
     public function paymentMethods()

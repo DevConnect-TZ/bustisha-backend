@@ -18,6 +18,7 @@ Route::get('/services', [ServiceController::class, 'index']);
 Route::get('/services/{service}', [ServiceController::class, 'show']);
 Route::get('/settings/min-deposit', [SettingController::class, 'minDeposit']);
 Route::get('/settings/whatsapp', [SettingController::class, 'whatsapp']);
+Route::get('/settings/metadata', [SettingController::class, 'getMetadata']);
 Route::get('/payment-methods', [SettingController::class, 'paymentMethods']);
 Route::post('/payment/mobilipa/webhook', [TransactionController::class, 'mobilipaWebhook']);
 
