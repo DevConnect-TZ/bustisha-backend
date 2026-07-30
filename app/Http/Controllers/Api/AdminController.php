@@ -10,6 +10,7 @@ use App\Models\TicketReply;
 use App\Models\Transaction;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class AdminController extends Controller
 {
@@ -73,6 +74,13 @@ class AdminController extends Controller
     {
         $service->delete();
         return response()->json(['message' => 'Deleted.']);
+    }
+
+    public function destroyServices(Request $request)
+    {
+        $data = $request->validate(['ids' => 'required|array', 'ids.*' => 'integer|exists:services,id']);
+        Service::whereIn('id', $data['ids'])->delete();
+        return response()->json(['message' => count($data['ids']) . ' service(s) deleted.']);
     }
 
     public function orders(Request $request)
@@ -147,6 +155,15 @@ class AdminController extends Controller
         $ticket->update(['status' => 'replied']);
 
         return response()->json($reply->load('user'), 201);
+    }
+
+    public function topUsers()
+    {
+        return User::where('role', 'user')
+            ->select('users.*', DB::raw('(SELECT COUNT(*) FROM orders WHERE orders.user_id = users.id AND orders.charge >= 1000) as qualifying_orders'))
+            ->having('qualifying_orders', '>', 0)
+            ->orderBy('qualifying_orders', 'desc')
+            ->get();
     }
 
     public function users(Request $request)

@@ -5,10 +5,22 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\Service;
+use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class OrderController extends Controller
 {
+    public function topUsers()
+    {
+        return User::where('role', 'user')
+            ->select('users.*', DB::raw('(SELECT COUNT(*) FROM orders WHERE orders.user_id = users.id AND orders.charge >= 1000) as qualifying_orders'))
+            ->having('qualifying_orders', '>', 0)
+            ->orderBy('qualifying_orders', 'desc')
+            ->limit(20)
+            ->get();
+    }
+
     public function index(Request $request)
     {
         $query = Order::with('service')->where('user_id', $request->user()->id);

@@ -66,7 +66,7 @@ class ProviderController extends Controller
         }
     }
 
-    public function fetchServices(Provider $provider)
+    public function previewServices(Provider $provider)
     {
         try {
             $response = Http::asForm()->post(rtrim($provider->api_url, '/'), [
@@ -80,9 +80,9 @@ class ProviderController extends Controller
                 return response()->json(['error' => $services['error'] ?? 'Invalid response'], 422);
             }
 
-            $imported = 0;
-            $skipped = 0;
+            $existingNames = \App\Models\Service::pluck('name')->toArray();
 
+            $result = [];
             foreach ($services as $svc) {
                 $serviceId = $svc['service'] ?? $svc['id'] ?? null;
                 if (!$serviceId) continue;
@@ -93,32 +93,62 @@ class ProviderController extends Controller
                 $max = $svc['max'] ?? $svc['max_quantity'] ?? 999999;
                 $category = $svc['category'] ?? 'General';
 
-                $existing = \App\Models\Service::where('name', $name)->first();
-                if ($existing) {
-                    $skipped++;
-                    continue;
-                }
-
-                \App\Models\Service::create([
+                $result[] = [
+                    'provider_service_id' => $serviceId,
                     'name' => $name,
-                    'platform' => $category,
-                    'category' => $category,
                     'rate' => $rate,
-                    'min_quantity' => (int) $min,
-                    'max_quantity' => (int) $max,
-                    'description' => "Provider: {$provider->name} | Service ID: {$serviceId}",
-                    'is_active' => true,
-                ]);
-                $imported++;
+                    'min' => (int) $min,
+                    'max' => (int) $max,
+                    'category' => $category,
+                    'exists' => in_array($name, $existingNames),
+                ];
             }
 
-            return response()->json([
-                'message' => "Imported {$imported} new services, skipped {$skipped} duplicates.",
-                'imported' => $imported,
-                'skipped' => $skipped,
-            ]);
+            return response()->json($result);
         } catch (\Exception $e) {
             return response()->json(['error' => $e->getMessage()], 500);
         }
+    }
+
+    public function importServices(Request $request, Provider $provider)
+    {
+        $data = $request->validate([
+            'services' => 'required|array',
+            'services.*.provider_service_id' => 'required',
+            'services.*.name' => 'required|string',
+            'services.*.rate' => 'required|numeric',
+            'services.*.min' => 'required|integer',
+            'services.*.max' => 'required|integer',
+            'services.*.category' => 'required|string',
+        ]);
+
+        $imported = 0;
+        $skipped = 0;
+
+        foreach ($data['services'] as $svc) {
+            $existing = \App\Models\Service::where('name', $svc['name'])->first();
+            if ($existing) {
+                $skipped++;
+                continue;
+            }
+
+            \App\Models\Service::create([
+                'name' => $svc['name'],
+                'platform' => $svc['category'],
+                'category' => $svc['category'],
+                'rate' => $svc['rate'],
+                'min_quantity' => (int) $svc['min'],
+                'max_quantity' => (int) $svc['max'],
+                'description' => "Provider: {$provider->name} | Service ID: {$svc['provider_service_id']}",
+                'is_active' => true,
+            ]);
+            $imported++;
+        }
+
+        return response()->json([
+            'message' => "Imported {$imported} new services, skipped {$skipped} duplicates.",
+            'imported' => $imported,
+            'skipped' => $skipped,
+        ]);
     }
 }

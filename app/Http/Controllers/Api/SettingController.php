@@ -18,16 +18,32 @@ class SettingController extends Controller
         $data = $request->validate([
             'min_deposit' => 'sometimes|numeric|min:100',
             'whatsapp_number' => 'nullable|string|max:20',
+            'mobilipa_enabled' => 'sometimes|boolean',
+            'mobilipa_api_key' => 'nullable|string|max:255',
+            'mobilipa_api_secret' => 'nullable|string|max:255',
+            'sonicpesa_enabled' => 'sometimes|boolean',
+            'sonicpesa_api_key' => 'nullable|string|max:255',
+            'sonicpesa_api_secret' => 'nullable|string|max:255',
         ]);
 
-        if (isset($data['min_deposit'])) {
-            Setting::updateOrCreate(['key' => 'min_deposit'], ['value' => $data['min_deposit']]);
-        }
-        if (array_key_exists('whatsapp_number', $data)) {
-            Setting::updateOrCreate(['key' => 'whatsapp_number'], ['value' => $data['whatsapp_number'] ?? '']);
+        $keys = ['min_deposit', 'whatsapp_number', 'mobilipa_enabled', 'mobilipa_api_key', 'mobilipa_api_secret', 'sonicpesa_enabled', 'sonicpesa_api_key', 'sonicpesa_api_secret'];
+        foreach ($keys as $key) {
+            if (array_key_exists($key, $data)) {
+                Setting::updateOrCreate(['key' => $key], ['value' => $data[$key] ?? '']);
+            }
         }
 
         return response()->json(['message' => 'Settings updated.']);
+    }
+
+    public function paymentMethods()
+    {
+        return response()->json([
+            ['id' => 'mpesa', 'name' => 'M-Pesa', 'logo' => '/payment logo/mpesa.jpeg'],
+            ['id' => 'mixxbyyas', 'name' => 'Mixx by Yas', 'logo' => '/payment logo/mixxbyyas.jpeg'],
+            ['id' => 'airtel_money', 'name' => 'Airtel Money', 'logo' => '/payment logo/airtel money.png'],
+            ['id' => 'halotel', 'name' => 'Halotel', 'logo' => '/payment logo/halopesa.png'],
+        ]);
     }
 
     public function minDeposit()

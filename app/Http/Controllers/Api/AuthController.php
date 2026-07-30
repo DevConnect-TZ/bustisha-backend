@@ -47,7 +47,18 @@ class AuthController extends Controller
 
         $user = User::where('email', $request->email)->first();
 
-        if (!$user || !Hash::check($request->password, $user->password)) {
+        if (!$user) {
+            throw ValidationException::withMessages([
+                'email' => ['Invalid credentials.'],
+            ]);
+        }
+
+        if (!Hash::check($request->password, $user->password)) {
+            $user->increment('failed_login_attempts');
+            if ($user->failed_login_attempts >= 4) {
+                $user->update(['status' => 'suspended']);
+                return response()->json(['message' => 'Account suspended due to too many failed attempts.'], 403);
+            }
             throw ValidationException::withMessages([
                 'email' => ['Invalid credentials.'],
             ]);
@@ -56,6 +67,11 @@ class AuthController extends Controller
         if ($user->status !== 'active') {
             return response()->json(['message' => 'Account is suspended.'], 403);
         }
+
+        $user->update([
+            'failed_login_attempts' => 0,
+            'last_active_at' => now(),
+        ]);
 
         return response()->json([
             'user' => $user,

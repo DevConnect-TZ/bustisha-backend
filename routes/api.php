@@ -18,6 +18,8 @@ Route::get('/services', [ServiceController::class, 'index']);
 Route::get('/services/{service}', [ServiceController::class, 'show']);
 Route::get('/settings/min-deposit', [SettingController::class, 'minDeposit']);
 Route::get('/settings/whatsapp', [SettingController::class, 'whatsapp']);
+Route::get('/payment-methods', [SettingController::class, 'paymentMethods']);
+Route::post('/payment/mobilipa/webhook', [TransactionController::class, 'mobilipaWebhook']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
@@ -25,6 +27,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/profile', [ProfileController::class, 'show']);
     Route::put('/profile', [ProfileController::class, 'update']);
 
+    Route::get('/top-users', [OrderController::class, 'topUsers']);
     Route::get('/orders', [OrderController::class, 'index']);
     Route::post('/orders', [OrderController::class, 'store']);
     Route::get('/orders/{order}', [OrderController::class, 'show']);
@@ -44,6 +47,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/services', [AdminController::class, 'storeService']);
         Route::put('/services/{service}', [AdminController::class, 'updateService']);
         Route::delete('/services/{service}', [AdminController::class, 'destroyService']);
+        Route::post('/services/bulk-delete', [AdminController::class, 'destroyServices']);
 
         Route::get('/orders', [AdminController::class, 'orders']);
         Route::put('/orders/{order}', [AdminController::class, 'updateOrder']);
@@ -54,6 +58,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
         Route::get('/users', [AdminController::class, 'users']);
         Route::put('/users/{user}', [AdminController::class, 'updateUser']);
+        Route::get('/top-users', [AdminController::class, 'topUsers']);
 
         Route::get('/transactions', [AdminController::class, 'transactions']);
         Route::put('/transactions/{transaction}', [AdminController::class, 'updateTransaction']);
@@ -63,6 +68,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/providers/{provider}', [ProviderController::class, 'update']);
         Route::delete('/providers/{provider}', [ProviderController::class, 'destroy']);
         Route::post('/providers/{provider}/balance', [ProviderController::class, 'balance']);
+        Route::post('/providers/{provider}/preview-services', [ProviderController::class, 'previewServices']);
+        Route::post('/providers/{provider}/import-services', [ProviderController::class, 'importServices']);
         Route::post('/providers/{provider}/fetch-services', [ProviderController::class, 'fetchServices']);
 
         Route::get('/settings', [SettingController::class, 'index']);

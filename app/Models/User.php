@@ -13,6 +13,7 @@ class User extends Authenticatable
 
     protected $fillable = [
         'name', 'email', 'password', 'username', 'phone', 'balance', 'total_spent', 'role', 'status',
+        'last_active_at', 'failed_login_attempts',
     ];
 
     protected $hidden = ['password', 'remember_token'];
@@ -24,6 +25,8 @@ class User extends Authenticatable
             'password' => 'hashed',
             'balance' => 'decimal:2',
             'total_spent' => 'decimal:2',
+            'last_active_at' => 'datetime',
+            'failed_login_attempts' => 'integer',
         ];
     }
 
