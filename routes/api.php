@@ -20,7 +20,6 @@ Route::get('/settings/min-deposit', [SettingController::class, 'minDeposit']);
 Route::get('/settings/whatsapp', [SettingController::class, 'whatsapp']);
 Route::get('/settings/metadata', [SettingController::class, 'getMetadata']);
 Route::get('/payment-methods', [SettingController::class, 'paymentMethods']);
-Route::post('/payment/mobilipa/webhook', [TransactionController::class, 'mobilipaWebhook']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
@@ -40,6 +39,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/transactions', [TransactionController::class, 'index']);
     Route::post('/transactions', [TransactionController::class, 'store']);
+    Route::post('/transactions/{transaction}/status', [TransactionController::class, 'status']);
+    Route::post('/transactions/{transaction}/timeout', [TransactionController::class, 'timeout']);
 
     Route::middleware('admin')->prefix('admin')->group(function () {
         Route::get('/dashboard', [AdminController::class, 'dashboard']);

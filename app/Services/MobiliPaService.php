@@ -11,7 +11,7 @@ class MobiliPaService
 
     public function getApiKey(): ?string
     {
-        return Setting::getValue('mobilipa_api_key');
+        return Setting::getSecret('mobilipa_api_key');
     }
 
     public function isConfigured(): bool
@@ -29,7 +29,7 @@ class MobiliPaService
 
     public function createOrder(string $buyerEmail, string $buyerName, string $buyerPhone, float $amount, string $currency = 'TZS'): array
     {
-        $response = Http::withHeaders($this->headers())->post("{$this->baseUrl}/v1/payment/create_order", [
+        $response = Http::acceptJson()->withHeaders($this->headers())->timeout(20)->post("{$this->baseUrl}/v1/payment/create_order", [
             'buyer_email' => $buyerEmail,
             'buyer_name' => $buyerName,
             'buyer_phone' => $buyerPhone,
@@ -37,15 +37,15 @@ class MobiliPaService
             'currency' => $currency,
         ]);
 
-        return $response->json();
+        return $response->throw()->json();
     }
 
     public function checkStatus(string $orderId): array
     {
-        $response = Http::withHeaders($this->headers())->post("{$this->baseUrl}/v1/payment/check_status", [
-            'order_id' => $orderId,
+        $response = Http::acceptJson()->withHeaders($this->headers())->timeout(20)->send('GET', "{$this->baseUrl}/v1/payment/status", [
+            'json' => ['order_id' => $orderId],
         ]);
 
-        return $response->json();
+        return $response->throw()->json();
     }
 }

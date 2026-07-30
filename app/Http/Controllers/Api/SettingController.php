@@ -5,12 +5,16 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Setting;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class SettingController extends Controller
 {
     public function index()
     {
-        return Setting::pluck('value', 'key');
+        $settings = Setting::whereNotIn('key', ['mobilipa_api_key', 'sonicpesa_api_key'])->pluck('value', 'key');
+        $settings['mobilipa_api_key_set'] = filled(Setting::getSecret('mobilipa_api_key'));
+        $settings['sonicpesa_api_key_set'] = filled(Setting::getSecret('sonicpesa_api_key'));
+        return $settings;
     }
 
     public function update(Request $request)
@@ -21,18 +25,21 @@ class SettingController extends Controller
             'conversion_rate' => 'sometimes|numeric|min:1',
             'categories' => 'nullable|string',
             'platforms' => 'nullable|string',
-            'mobilipa_enabled' => 'sometimes|boolean',
+            'active_payment_gateway' => ['nullable', Rule::in(['mobilipa', 'sonicpesa'])],
             'mobilipa_api_key' => 'nullable|string|max:255',
-            'mobilipa_api_secret' => 'nullable|string|max:255',
-            'sonicpesa_enabled' => 'sometimes|boolean',
             'sonicpesa_api_key' => 'nullable|string|max:255',
-            'sonicpesa_api_secret' => 'nullable|string|max:255',
         ]);
 
-        $keys = ['min_deposit', 'whatsapp_number', 'conversion_rate', 'categories', 'platforms', 'mobilipa_enabled', 'mobilipa_api_key', 'mobilipa_api_secret', 'sonicpesa_enabled', 'sonicpesa_api_key', 'sonicpesa_api_secret'];
+        $keys = ['min_deposit', 'whatsapp_number', 'conversion_rate', 'categories', 'platforms', 'active_payment_gateway'];
         foreach ($keys as $key) {
             if (array_key_exists($key, $data)) {
                 Setting::updateOrCreate(['key' => $key], ['value' => $data[$key] ?? '']);
+            }
+        }
+
+        foreach (['mobilipa_api_key', 'sonicpesa_api_key'] as $key) {
+            if (array_key_exists($key, $data) && filled($data[$key])) {
+                Setting::setSecret($key, $data[$key]);
             }
         }
 
@@ -52,6 +59,11 @@ class SettingController extends Controller
 
     public function paymentMethods()
     {
+        $active = Setting::getValue('active_payment_gateway');
+        if (!in_array($active, ['mobilipa', 'sonicpesa'], true) || !filled(Setting::getSecret($active.'_api_key'))) {
+            return response()->json([]);
+        }
+
         return response()->json([
             ['id' => 'mpesa', 'name' => 'M-Pesa', 'logo' => '/payment logo/mpesa.jpeg'],
             ['id' => 'mixxbyyas', 'name' => 'Mixx by Yas', 'logo' => '/payment logo/mixxbyyas.jpeg'],
