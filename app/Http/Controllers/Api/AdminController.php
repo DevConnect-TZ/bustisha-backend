@@ -9,6 +9,7 @@ use App\Models\Ticket;
 use App\Models\TicketReply;
 use App\Models\Transaction;
 use App\Models\User;
+use App\Services\UploadSanitizer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -148,13 +149,24 @@ class AdminController extends Controller
     {
         $data = $request->validate([
             'message' => 'required|string',
+            'attachment' => 'nullable|file|mimes:jpg,jpeg,png,gif,webp|max:2048',
         ]);
 
-        $reply = TicketReply::create([
+        $replyData = [
             'ticket_id' => $ticket->id,
             'user_id' => $request->user()->id,
             'message' => $data['message'],
-        ]);
+        ];
+
+        if ($request->hasFile('attachment')) {
+            $result = app(UploadSanitizer::class)->sanitize($request->file('attachment'));
+            if (!$result['safe']) {
+                return response()->json(['message' => $result['message']], 422);
+            }
+            $replyData['attachment'] = $result['file']->store('tickets', 'public');
+        }
+
+        $reply = TicketReply::create($replyData);
 
         $ticket->update(['status' => 'replied']);
 
