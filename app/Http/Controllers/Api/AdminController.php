@@ -24,6 +24,7 @@ class AdminController extends Controller
             'cancelled_orders' => Order::where('status', 'cancelled')->count(),
             'total_revenue' => Order::where('status', 'completed')->sum('charge'),
             'total_users' => User::where('role', 'user')->count(),
+            'total_user_balance' => User::where('role', 'user')->sum('balance'),
             'active_services' => Service::where('is_active', true)->count(),
             'open_tickets' => Ticket::where('status', 'open')->count(),
         ]);
@@ -110,13 +111,45 @@ class AdminController extends Controller
             'status' => 'required|in:pending,processing,completed,cancelled',
         ]);
 
-        $order->update($data);
+        $previousStatus = $order->status;
+        $newStatus = $data['status'];
 
-        if ($data['status'] === 'completed') {
-            $user = $order->user;
-            $user->total_spent += $order->charge;
-            $user->save();
+        if ($newStatus === 'cancelled') {
+            if ($previousStatus === 'processing') {
+                return response()->json(['message' => 'This order has started and cannot be cancelled.'], 422);
+            }
+
+            if ($previousStatus !== 'cancelled' && $order->provider_order_id) {
+                $order = app(\App\Services\OrderService::class)->checkStatus($order);
+                $providerStatus = $order->fresh()->status;
+
+                if (in_array($providerStatus, ['completed', 'processing', 'partial'], true)) {
+                    return response()->json([
+                        'message' => 'Provider reports this order as ' . $providerStatus . '. Refund cannot be issued.',
+                    ], 422);
+                }
+            }
         }
+
+        DB::transaction(function () use ($order, $previousStatus, $newStatus) {
+            $order->update(['status' => $newStatus]);
+
+            $user = $order->user;
+            if (!$user) return;
+
+            if ($newStatus === 'cancelled' && $previousStatus !== 'cancelled') {
+                $user->balance += $order->charge;
+                if ($previousStatus === 'completed') {
+                    $user->total_spent = max(0, $user->total_spent - $order->charge);
+                }
+                $user->save();
+            }
+
+            if ($newStatus === 'completed' && $previousStatus !== 'completed') {
+                $user->total_spent += $order->charge;
+                $user->save();
+            }
+        });
 
         return $order->load(['user', 'service']);
     }
