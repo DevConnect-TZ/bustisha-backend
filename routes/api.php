@@ -26,6 +26,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/profile', [ProfileController::class, 'show']);
     Route::put('/profile', [ProfileController::class, 'update']);
+    Route::get('/badges', [ProfileController::class, 'badges']);
 
     Route::get('/top-users', [OrderController::class, 'topUsers']);
     Route::get('/orders', [OrderController::class, 'index']);
@@ -44,6 +45,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::middleware('admin')->prefix('admin')->group(function () {
         Route::get('/dashboard', [AdminController::class, 'dashboard']);
+        Route::get('/badges', [AdminController::class, 'badges']);
 
         Route::get('/services', [AdminController::class, 'services']);
         Route::post('/services', [AdminController::class, 'storeService']);

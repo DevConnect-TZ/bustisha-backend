@@ -173,6 +173,14 @@ class AdminController extends Controller
         return response()->json($reply->load('user'), 201);
     }
 
+    public function badges()
+    {
+        return response()->json([
+            'pending_orders' => Order::where('status', 'pending')->count(),
+            'open_tickets' => Ticket::where('status', 'pending')->count(),
+        ]);
+    }
+
     public function topUsers()
     {
         return User::where('role', 'user')

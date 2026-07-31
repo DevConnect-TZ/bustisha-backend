@@ -23,6 +23,16 @@ class ProfileController extends Controller
         ]);
     }
 
+    public function badges(Request $request)
+    {
+        $user = $request->user();
+
+        return response()->json([
+            'unread_tickets' => $user->tickets()->where('status', 'replied')->count(),
+            'failed_orders' => $user->orders()->where('status', 'cancelled')->count(),
+        ]);
+    }
+
     public function update(Request $request)
     {
         $data = $request->validate([
