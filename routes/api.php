@@ -55,6 +55,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
         Route::get('/orders', [AdminController::class, 'orders']);
         Route::put('/orders/{order}', [AdminController::class, 'updateOrder']);
+        Route::post('/orders/sync-status', [AdminController::class, 'syncOrderStatuses']);
 
         Route::get('/tickets', [AdminController::class, 'tickets']);
         Route::put('/tickets/{ticket}', [AdminController::class, 'updateTicket']);

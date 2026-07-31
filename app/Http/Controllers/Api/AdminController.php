@@ -105,6 +105,30 @@ class AdminController extends Controller
         return $query->latest()->get();
     }
 
+    public function syncOrderStatuses()
+    {
+        $orders = \App\Models\Order::whereIn('status', ['pending', 'processing'])
+            ->whereNotNull('provider_order_id')
+            ->with('service.provider')
+            ->get();
+
+        $updated = 0;
+
+        foreach ($orders as $order) {
+            $before = $order->status;
+            app(\App\Services\OrderService::class)->checkStatus($order);
+            if ($order->status !== $before) {
+                $updated++;
+            }
+        }
+
+        return response()->json([
+            'message' => "Checked {$orders->count()} order(s), {$updated} updated.",
+            'checked' => $orders->count(),
+            'updated' => $updated,
+        ]);
+    }
+
     public function updateOrder(Request $request, Order $order)
     {
         $data = $request->validate([
