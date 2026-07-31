@@ -130,4 +130,80 @@ class OrderSubmissionTest extends TestCase
 
         Http::assertSentCount(1);
     }
+
+    public function test_order_status_is_polled_and_mapped_from_provider(): void
+    {
+        Http::fake([
+            'https://provider.test/api' => Http::response([
+                'status' => 'Completed',
+                'start_count' => '0',
+                'remains' => '0',
+            ]),
+        ]);
+
+        $provider = Provider::create([
+            'name' => 'Test Provider',
+            'api_url' => 'https://provider.test/api',
+            'api_key' => 'secret-key',
+            'status' => 'active',
+        ]);
+
+        $service = Service::create([
+            'name' => 'Instagram Followers',
+            'platform' => 'instagram',
+            'category' => 'Followers',
+            'rate' => 100,
+            'min_quantity' => 10,
+            'max_quantity' => 1000,
+            'provider_id' => $provider->id,
+            'provider_service_id' => 'insta_1',
+            'is_active' => true,
+        ]);
+
+        $order = Order::create([
+            'user_id' => User::factory()->create()->id,
+            'service_id' => $service->id,
+            'link' => 'https://instagram.com/test',
+            'quantity' => 100,
+            'charge' => 10,
+            'status' => 'processing',
+            'provider_order_id' => '987654321',
+        ]);
+
+        $this->artisan('orders:check-status')->assertExitCode(0);
+
+        Http::assertSent(function ($request) {
+            return $request['action'] === 'status' && $request['order'] === '987654321';
+        });
+
+        $this->assertSame('completed', $order->fresh()->status);
+    }
+
+    public function test_order_status_is_not_checked_without_provider_order_id(): void
+    {
+        Http::fake();
+
+        $service = Service::create([
+            'name' => 'Instagram Followers',
+            'platform' => 'instagram',
+            'category' => 'Followers',
+            'rate' => 100,
+            'min_quantity' => 10,
+            'max_quantity' => 1000,
+            'is_active' => true,
+        ]);
+
+        Order::create([
+            'user_id' => User::factory()->create()->id,
+            'service_id' => $service->id,
+            'link' => 'https://instagram.com/test',
+            'quantity' => 100,
+            'charge' => 10,
+            'status' => 'processing',
+        ]);
+
+        $this->artisan('orders:check-status')->assertExitCode(0);
+
+        Http::assertNothingSent();
+    }
 }
