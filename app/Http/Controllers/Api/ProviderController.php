@@ -185,6 +185,8 @@ class ProviderController extends Controller
                 'rate' => $svc['rate'],
                 'min_quantity' => (int) $svc['min'],
                 'max_quantity' => (int) $svc['max'],
+                'provider_id' => $provider->id,
+                'provider_service_id' => $svc['provider_service_id'],
                 'description' => "Provider: {$provider->name} | Service ID: {$svc['provider_service_id']}",
                 'is_active' => true,
             ]);
