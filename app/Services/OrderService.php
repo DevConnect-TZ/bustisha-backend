@@ -10,12 +10,12 @@ use Illuminate\Support\Facades\Log;
 class OrderService
 {
     protected const STATUS_KEYS = [
-        'completed' => ['completed', 'complete', 'success', 'done', '3'],
-        'processing' => ['in-progress', 'in progress', 'processing', 'progress', '2', 'active'],
-        'pending' => ['pending', 'awaiting', 'queued', '1'],
-        'partial' => ['partial', 'partially', 'partly', '4'],
-        'cancelled' => ['cancelled', 'canceled', 'cancel', 'refunded', '5'],
-        'failed' => ['error', 'failed', 'fail', '6'],
+        'completed' => ['completed', 'complete', 'complet', 'success', 'done', '3'],
+        'processing' => ['in-progress', 'in progress', 'inprogress', 'processing', 'process', 'progress', '2', 'active', 'started', 'delivering'],
+        'pending' => ['pending', 'awaiting', 'queued', 'waiting', '1'],
+        'partial' => ['partial', 'partially', 'partly', 'partial completed', '4'],
+        'cancelled' => ['cancelled', 'canceled', 'cancel', 'refunded', 'refund', '5'],
+        'failed' => ['error', 'failed', 'fail', 'rejected', '6'],
     ];
 
     public function place(Order $order): Order
