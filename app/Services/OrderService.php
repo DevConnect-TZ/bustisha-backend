@@ -47,7 +47,7 @@ class OrderService
                 throw new \RuntimeException('Invalid response from provider');
             }
 
-            $order->provider_response = json_encode($body);
+            $order->provider_response = $body;
 
             if (isset($body['order'])) {
                 $order->provider_order_id = $body['order'];
@@ -68,7 +68,7 @@ class OrderService
                 'error' => $e->getMessage(),
             ]);
 
-            $order->provider_response = $e->getMessage();
+            $order->provider_response = ['error' => $e->getMessage()];
             $order->status = 'failed';
             $order->save();
 
@@ -101,7 +101,7 @@ class OrderService
             $providerStatus = strtolower((string) ($body['status'] ?? ''));
             $mapped = $this->mapStatus($providerStatus);
 
-            $order->provider_response = json_encode($body);
+            $order->provider_response = $body;
 
             if ($mapped) {
                 $order->status = $mapped;
@@ -116,7 +116,7 @@ class OrderService
                 'error' => $e->getMessage(),
             ]);
 
-            $order->provider_response = $e->getMessage();
+            $order->provider_response = ['error' => $e->getMessage()];
             $order->save();
 
             return $order;
