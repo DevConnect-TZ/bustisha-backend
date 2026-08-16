@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Service;
 use App\Models\Setting;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -49,11 +50,27 @@ class SettingController extends Controller
     public function getMetadata()
     {
         $rawCategories = Setting::getValue('categories', '');
-        $rawPlatforms = Setting::getValue('platforms', '');
+
+        $platforms = Service::where('is_active', true)
+            ->whereNotNull('platform')
+            ->where('platform', '!=', '')
+            ->distinct()
+            ->pluck('platform')
+            ->map(fn($p) => trim($p))
+            ->filter()
+            ->values()
+            ->sort()
+            ->values()
+            ->all();
+
+        if (empty($platforms)) {
+            $rawPlatforms = Setting::getValue('platforms', '');
+            $platforms = $rawPlatforms ? array_map('trim', explode(',', $rawPlatforms)) : [];
+        }
 
         return response()->json([
             'categories' => $rawCategories ? array_map('trim', explode(',', $rawCategories)) : ['Followers', 'Likes', 'Comments', 'Views', 'Subscribers', 'Members', 'Plays', 'Shares'],
-            'platforms' => $rawPlatforms ? array_map('trim', explode(',', $rawPlatforms)) : [],
+            'platforms' => $platforms,
         ]);
     }
 
