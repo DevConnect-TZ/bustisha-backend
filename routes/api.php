@@ -27,6 +27,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/profile', [ProfileController::class, 'show']);
     Route::put('/profile', [ProfileController::class, 'update']);
+    Route::post('/profile/send-phone-otp', [ProfileController::class, 'sendPhoneOtp']);
+    Route::post('/profile/verify-phone', [ProfileController::class, 'verifyPhone']);
     Route::get('/badges', [ProfileController::class, 'badges']);
 
     Route::get('/top-users', [OrderController::class, 'topUsers']);
