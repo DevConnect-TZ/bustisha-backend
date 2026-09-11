@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Order;
 use App\Models\Provider;
+use App\Services\TextifyService;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -61,6 +62,10 @@ class OrderService
 
             $order->save();
 
+            if ($order->status === 'failed') {
+                TextifyService::notifyOrderFailed($order, 'Provider did not return a valid order ID.');
+            }
+
             return $order;
         } catch (\Throwable $e) {
             Log::error('OrderService::place failed', [
@@ -71,6 +76,8 @@ class OrderService
             $order->provider_response = ['error' => $e->getMessage()];
             $order->status = 'failed';
             $order->save();
+
+            TextifyService::notifyOrderFailed($order, $e->getMessage());
 
             return $order;
         }
@@ -108,6 +115,10 @@ class OrderService
             }
 
             $order->save();
+
+            if ($mapped === 'failed') {
+                TextifyService::notifyOrderFailed($order, "Provider status: {$providerStatus}");
+            }
 
             return $order;
         } catch (\Throwable $e) {

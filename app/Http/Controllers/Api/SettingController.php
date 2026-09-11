@@ -12,33 +12,36 @@ class SettingController extends Controller
 {
     public function index()
     {
-        $settings = Setting::whereNotIn('key', ['mobilipa_api_key', 'sonicpesa_api_key'])->pluck('value', 'key');
-        $settings['mobilipa_api_key_set'] = filled(Setting::getSecret('mobilipa_api_key'));
+        $settings = Setting::whereNotIn('key', ['mobilipa_api_key', 'sonicpesa_api_key', 'textify_api_key'])->pluck('value', 'key');
+        $settings['mobilipa_api_key_set']  = filled(Setting::getSecret('mobilipa_api_key'));
         $settings['sonicpesa_api_key_set'] = filled(Setting::getSecret('sonicpesa_api_key'));
+        $settings['textify_api_key_set']   = filled(Setting::getSecret('textify_api_key'));
         return $settings;
     }
 
     public function update(Request $request)
     {
         $data = $request->validate([
-            'min_deposit' => 'sometimes|numeric|min:100',
-            'whatsapp_number' => 'nullable|string|max:20',
-            'conversion_rate' => 'sometimes|numeric|min:1',
-            'categories' => 'nullable|string',
-            'platforms' => 'nullable|string',
+            'min_deposit'            => 'sometimes|numeric|min:100',
+            'whatsapp_number'        => 'nullable|string|max:20',
+            'conversion_rate'        => 'sometimes|numeric|min:1',
+            'categories'             => 'nullable|string',
+            'platforms'              => 'nullable|string',
             'active_payment_gateway' => ['nullable', Rule::in(['mobilipa', 'sonicpesa'])],
-            'mobilipa_api_key' => 'nullable|string|max:255',
-            'sonicpesa_api_key' => 'nullable|string|max:255',
+            'mobilipa_api_key'       => 'nullable|string|max:255',
+            'sonicpesa_api_key'      => 'nullable|string|max:255',
+            'textify_api_key'        => 'nullable|string|max:255',
+            'admin_phone'            => 'nullable|string|max:20',
         ]);
 
-        $keys = ['min_deposit', 'whatsapp_number', 'conversion_rate', 'categories', 'platforms', 'active_payment_gateway'];
+        $keys = ['min_deposit', 'whatsapp_number', 'conversion_rate', 'categories', 'platforms', 'active_payment_gateway', 'admin_phone'];
         foreach ($keys as $key) {
             if (array_key_exists($key, $data)) {
                 Setting::updateOrCreate(['key' => $key], ['value' => $data[$key] ?? '']);
             }
         }
 
-        foreach (['mobilipa_api_key', 'sonicpesa_api_key'] as $key) {
+        foreach (['mobilipa_api_key', 'sonicpesa_api_key', 'textify_api_key'] as $key) {
             if (array_key_exists($key, $data) && filled($data[$key])) {
                 Setting::setSecret($key, $data[$key]);
             }
