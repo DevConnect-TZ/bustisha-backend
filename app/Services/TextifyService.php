@@ -59,6 +59,52 @@ class TextifyService
     }
 
     /**
+     * Send an SMS to a specific phone number (e.g. a newly registered user).
+     *
+     * @param  string  $phone    Recipient phone number with country code (no +)
+     * @param  string  $message  The SMS body text
+     * @return bool
+     */
+    public static function notifyUser(string $phone, string $message): bool
+    {
+        $apiKey = Setting::getSecret('textify_api_key');
+
+        if (!$apiKey || !$phone) {
+            return false;
+        }
+
+        try {
+            $response = Http::withToken($apiKey)
+                ->timeout(15)
+                ->post(self::BASE_URL, [
+                    'sender_name'  => self::SENDER,
+                    'is_scheduled' => false,
+                    'messages'     => [
+                        [
+                            'receiver' => $phone,
+                            'content'  => $message,
+                        ],
+                    ],
+                ]);
+
+            if (!$response->successful()) {
+                Log::warning('TextifyService: User SMS send failed', [
+                    'status' => $response->status(),
+                    'body'   => $response->body(),
+                ]);
+                return false;
+            }
+
+            return true;
+        } catch (\Throwable $e) {
+            Log::error('TextifyService: Exception sending user SMS', [
+                'error' => $e->getMessage(),
+            ]);
+            return false;
+        }
+    }
+
+    /**
      * Build and send a failed-order alert to the admin.
      */
     public static function notifyOrderFailed(\App\Models\Order $order, string $reason = ''): void

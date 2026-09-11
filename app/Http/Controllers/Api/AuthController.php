@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\TextifyService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
@@ -21,19 +22,27 @@ class AuthController extends Controller
         ]);
 
         $user = User::create([
-            'name' => $data['name'],
-            'username' => $data['username'],
-            'email' => $data['email'],
-            'phone' => $data['phone'] ?? null,
-            'password' => Hash::make($data['password']),
-            'balance' => 0,
+            'name'        => $data['name'],
+            'username'    => $data['username'],
+            'email'       => $data['email'],
+            'phone'       => $data['phone'] ?? null,
+            'password'    => Hash::make($data['password']),
+            'balance'     => 0,
             'total_spent' => 0,
-            'role' => 'user',
-            'status' => 'active',
+            'role'        => 'user',
+            'status'      => 'active',
         ]);
 
+        // Send welcome SMS if the user provided a phone number
+        if (!empty($user->phone)) {
+            TextifyService::notifyUser(
+                $user->phone,
+                "Hello {$user->username}, your Bustisha account has been created successfully. Deposit to start placing orders."
+            );
+        }
+
         return response()->json([
-            'user' => $user,
+            'user'  => $user,
             'token' => $user->createToken('api')->plainTextToken,
         ], 201);
     }
