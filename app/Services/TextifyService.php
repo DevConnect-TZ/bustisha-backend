@@ -19,13 +19,15 @@ class TextifyService
      */
     public static function notifyAdmin(string $message): bool
     {
-        $apiKey = Setting::getSecret('textify_api_key');
+        $rawKey = Setting::getSecret('textify_api_key');
         $phone  = Setting::getValue('admin_phone');
 
-        if (!$apiKey || !$phone) {
+        if (!$rawKey || !$phone) {
             // SMS notifications not configured – skip silently.
             return false;
         }
+
+        $apiKey = trim(preg_replace('/^Bearer\s+/i', '', trim($rawKey)));
 
         try {
             $response = Http::withToken($apiKey)
@@ -67,11 +69,13 @@ class TextifyService
      */
     public static function notifyUser(string $phone, string $message): bool
     {
-        $apiKey = Setting::getSecret('textify_api_key');
+        $rawKey = Setting::getSecret('textify_api_key');
 
-        if (!$apiKey || !$phone) {
+        if (!$rawKey || !$phone) {
             return false;
         }
+
+        $apiKey = trim(preg_replace('/^Bearer\s+/i', '', trim($rawKey)));
 
         try {
             $response = Http::withToken($apiKey)

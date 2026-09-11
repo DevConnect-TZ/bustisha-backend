@@ -23,31 +23,39 @@ class SettingController extends Controller
     {
         $data = $request->validate([
             'min_deposit'            => 'sometimes|numeric|min:100',
-            'whatsapp_number'        => 'nullable|string|max:20',
+            'whatsapp_number'        => 'nullable|string|max:30',
             'conversion_rate'        => 'sometimes|numeric|min:1',
             'categories'             => 'nullable|string',
             'platforms'              => 'nullable|string',
             'active_payment_gateway' => ['nullable', Rule::in(['mobilipa', 'sonicpesa'])],
-            'mobilipa_api_key'       => 'nullable|string|max:255',
-            'sonicpesa_api_key'      => 'nullable|string|max:255',
-            'textify_api_key'        => 'nullable|string|max:255',
-            'admin_phone'            => 'nullable|string|max:20',
+            'mobilipa_api_key'       => 'nullable|string|max:1000',
+            'sonicpesa_api_key'      => 'nullable|string|max:1000',
+            'textify_api_key'        => 'nullable|string|max:1000',
+            'admin_phone'            => 'nullable|string|max:30',
         ]);
 
         $keys = ['min_deposit', 'whatsapp_number', 'conversion_rate', 'categories', 'platforms', 'active_payment_gateway', 'admin_phone'];
         foreach ($keys as $key) {
             if (array_key_exists($key, $data)) {
-                Setting::updateOrCreate(['key' => $key], ['value' => $data[$key] ?? '']);
+                Setting::updateOrCreate(['key' => $key], ['value' => trim((string) ($data[$key] ?? ''))]);
             }
         }
 
         foreach (['mobilipa_api_key', 'sonicpesa_api_key', 'textify_api_key'] as $key) {
             if (array_key_exists($key, $data) && filled($data[$key])) {
-                Setting::setSecret($key, $data[$key]);
+                $cleaned = trim((string) $data[$key]);
+                if ($key === 'textify_api_key') {
+                    $cleaned = preg_replace('/^Bearer\s+/i', '', $cleaned);
+                }
+                Setting::setSecret($key, $cleaned);
             }
         }
 
-        return response()->json(['message' => 'Settings updated.']);
+        return response()->json([
+            'message'              => 'Settings updated.',
+            'textify_api_key_set'  => filled(Setting::getSecret('textify_api_key')),
+            'admin_phone'          => Setting::getValue('admin_phone', ''),
+        ]);
     }
 
     public function getMetadata()
