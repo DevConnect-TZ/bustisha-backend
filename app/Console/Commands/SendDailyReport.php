@@ -56,3 +56,4 @@ class SendDailyReport extends Command
         return self::SUCCESS;
     }
 }
+
