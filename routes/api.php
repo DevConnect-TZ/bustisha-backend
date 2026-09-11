@@ -81,6 +81,9 @@ Route::middleware('auth:sanctum')->group(function () {
 
         Route::get('/settings', [SettingController::class, 'index']);
         Route::put('/settings', [SettingController::class, 'update']);
+
+        Route::get('/offers/audience-counts', [AdminController::class, 'offerAudienceCounts']);
+        Route::post('/offers/send-sms', [AdminController::class, 'sendOfferSms']);
     });
 
 });

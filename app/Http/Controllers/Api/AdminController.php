@@ -5,10 +5,12 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\Service;
+use App\Models\Setting;
 use App\Models\Ticket;
 use App\Models\TicketReply;
 use App\Models\Transaction;
 use App\Models\User;
+use App\Services\TextifyService;
 use App\Services\UploadSanitizer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -293,5 +295,118 @@ class AdminController extends Controller
         }
 
         return $transaction->load('user');
+    }
+
+    // ─── Offers & Promotion SMS ──────────────────────────────────────────────
+
+    /**
+     * Get user counts for various promotional SMS audience segments.
+     */
+    public function offerAudienceCounts()
+    {
+        $baseQuery = User::where('role', 'user')
+            ->where('status', 'active')
+            ->whereNotNull('phone')
+            ->where('phone', '!=', '');
+
+        $allCount = (clone $baseQuery)->count();
+        $newUsersCount = (clone $baseQuery)->doesntHave('orders')->count();
+        $activeBuyersCount = (clone $baseQuery)->whereHas('orders', fn($q) => $q->where('status', 'completed'))->count();
+        $depositedCount = (clone $baseQuery)->where('balance', '>', 0)->count();
+
+        return response()->json([
+            'textify_configured' => filled(Setting::getSecret('textify_api_key')),
+            'segments' => [
+                'all'           => $allCount,
+                'new_users'     => $newUsersCount,
+                'active_buyers' => $activeBuyersCount,
+                'deposited'     => $depositedCount,
+            ],
+        ]);
+    }
+
+    /**
+     * Send promotional SMS to selected audience or custom phone numbers.
+     */
+    public function sendOfferSms(Request $request)
+    {
+        $data = $request->validate([
+            'target'         => 'required|string|in:all,new_users,active_buyers,deposited,custom',
+            'message'        => 'required|string|min:3|max:500',
+            'custom_numbers' => 'nullable|string',
+        ]);
+
+        if (!filled(Setting::getSecret('textify_api_key'))) {
+            return response()->json(['message' => 'Textify Africa SMS is not configured. Please add your API key in Admin Settings first.'], 400);
+        }
+
+        $rawMessage = trim($data['message']);
+        $messagesToSend = [];
+
+        if ($data['target'] === 'custom') {
+            if (empty($data['custom_numbers'])) {
+                return response()->json(['message' => 'Please provide at least one phone number.'], 422);
+            }
+
+            // Split by comma, newline, space, semicolon
+            $phones = preg_split('/[\r\n,;\s]+/', $data['custom_numbers'], -1, PREG_SPLIT_NO_EMPTY);
+            $phones = array_unique(array_filter(array_map('trim', $phones)));
+
+            if (empty($phones)) {
+                return response()->json(['message' => 'No valid phone numbers found.'], 422);
+            }
+
+            foreach ($phones as $phone) {
+                // Strip + sign if present
+                $cleanPhone = ltrim($phone, '+');
+                $messagesToSend[] = [
+                    'receiver' => $cleanPhone,
+                    'content'  => str_replace(['{name}', '{username}'], 'Customer', $rawMessage),
+                ];
+            }
+        } else {
+            $query = User::where('role', 'user')
+                ->where('status', 'active')
+                ->whereNotNull('phone')
+                ->where('phone', '!=', '');
+
+            if ($data['target'] === 'new_users') {
+                $query->doesntHave('orders');
+            } elseif ($data['target'] === 'active_buyers') {
+                $query->whereHas('orders', fn($q) => $q->where('status', 'completed'));
+            } elseif ($data['target'] === 'deposited') {
+                $query->where('balance', '>', 0);
+            }
+
+            $users = $query->get(['id', 'name', 'username', 'phone']);
+
+            if ($users->isEmpty()) {
+                return response()->json(['message' => 'No users with phone numbers match the selected audience.'], 422);
+            }
+
+            foreach ($users as $user) {
+                $cleanPhone = ltrim(trim($user->phone), '+');
+                $personalized = str_replace(
+                    ['{name}', '{username}'],
+                    [$user->name ?: $user->username, $user->username],
+                    $rawMessage
+                );
+
+                $messagesToSend[] = [
+                    'receiver' => $cleanPhone,
+                    'content'  => $personalized,
+                ];
+            }
+        }
+
+        $totalTargeted = count($messagesToSend);
+        $result = TextifyService::sendBulk($messagesToSend);
+
+        return response()->json([
+            'message'        => "Promotion sent! Successfully queued: {$result['sent']}" . ($result['failed'] > 0 ? " (Failed: {$result['failed']})" : ""),
+            'total_targeted' => $totalTargeted,
+            'sent'           => $result['sent'],
+            'failed'         => $result['failed'],
+        ]);
     }
 }

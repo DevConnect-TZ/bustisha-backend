@@ -130,5 +130,53 @@ class TextifyService
 
         self::notifyAdmin(implode("\n", $lines));
     }
-}
 
+    /**
+     * Send bulk SMS messages in chunks of 50 (e.g. promotional offers).
+     *
+     * @param  array<array{receiver: string, content: string}>  $messages
+     * @return array{sent: int, failed: int}
+     */
+    public static function sendBulk(array $messages): array
+    {
+        $rawKey = Setting::getSecret('textify_api_key');
+        if (!$rawKey || empty($messages)) {
+            return ['sent' => 0, 'failed' => count($messages)];
+        }
+
+        $apiKey = trim(preg_replace('/^Bearer\s+/i', '', trim($rawKey)));
+        $sent   = 0;
+        $failed = 0;
+
+        $chunks = array_chunk($messages, 50);
+
+        foreach ($chunks as $chunk) {
+            try {
+                $response = Http::withToken($apiKey)
+                    ->timeout(30)
+                    ->post(self::BASE_URL, [
+                        'sender_name'  => self::SENDER,
+                        'is_scheduled' => false,
+                        'messages'     => $chunk,
+                    ]);
+
+                if ($response->successful()) {
+                    $sent += count($chunk);
+                } else {
+                    Log::warning('TextifyService: Bulk SMS chunk failed', [
+                        'status' => $response->status(),
+                        'body'   => $response->body(),
+                    ]);
+                    $failed += count($chunk);
+                }
+            } catch (\Throwable $e) {
+                Log::error('TextifyService: Exception sending bulk SMS chunk', [
+                    'error' => $e->getMessage(),
+                ]);
+                $failed += count($chunk);
+            }
+        }
+
+        return ['sent' => $sent, 'failed' => $failed];
+    }
+}
