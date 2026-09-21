@@ -193,6 +193,153 @@ class AuthController extends Controller
         ]);
     }
 
+    // ─── Forgot Password ───────────────────────────────────────────────────
+
+    /**
+     * Send OTP for password reset.
+     * Enforces: Phone must exist in users database, and 1 code request per day (24h limit).
+     */
+    public function forgotPasswordSendOtp(Request $request)
+    {
+        $data = $request->validate([
+            'phone' => 'required|string|max:25',
+        ]);
+
+        $rawPhone = trim($data['phone']);
+        $cleanPhone = preg_replace('/[^\d+]/', '', $rawPhone);
+        $digitsOnly = ltrim($cleanPhone, '+');
+
+        $user = User::where('phone', $rawPhone)
+            ->orWhere('phone', $cleanPhone)
+            ->orWhere('phone', $digitsOnly)
+            ->orWhere('phone', '+' . $digitsOnly)
+            ->when(str_starts_with($digitsOnly, '0'), function($q) use ($digitsOnly) {
+                $q->orWhere('phone', '255' . substr($digitsOnly, 1))
+                  ->orWhere('phone', '+255' . substr($digitsOnly, 1));
+            })
+            ->when(str_starts_with($digitsOnly, '255'), function($q) use ($digitsOnly) {
+                $q->orWhere('phone', '0' . substr($digitsOnly, 3));
+            })
+            ->first();
+
+        if (!$user) {
+            return response()->json([
+                'message' => 'No account found with this phone number. Please check the number or sign up.',
+            ], 404);
+        }
+
+        $phoneKey = preg_replace('/[^\d]/', '', $user->phone ?: $digitsOnly);
+        $lockKey = "forgot_pw_lock:{$phoneKey}";
+
+        // Enforce 1 request per day (24-hour limit)
+        if (Cache::has($lockKey)) {
+            $lockUntil = (int) Cache::get($lockKey);
+            $minutesLeft = max(1, (int) ceil(($lockUntil - now()->timestamp) / 60));
+            $hoursLeft = round($minutesLeft / 60, 1);
+            return response()->json([
+                'message' => "You have already requested a password reset code today. Limit is 1 code per day. Please try again in {$hoursLeft} hours.",
+                'locked' => true,
+                'minutes_left' => $minutesLeft,
+            ], 429);
+        }
+
+        $otp = str_pad(random_int(10000, 99999), 5, '0', STR_PAD_LEFT);
+        $otpKey = "forgot_pw_otp:{$phoneKey}";
+
+        // Store OTP for 15 minutes
+        Cache::put($otpKey, $otp, now()->addMinutes(15));
+
+        // Lock further requests for 24 hours (1 code per day)
+        $lockUntil = now()->addDay()->timestamp;
+        Cache::put($lockKey, $lockUntil, now()->addDay());
+
+        // Target phone for SMS (clean digits without +)
+        $smsTarget = ltrim(trim($user->phone ?: $digitsOnly), '+');
+        if (str_starts_with($smsTarget, '0')) {
+            $smsTarget = '255' . substr($smsTarget, 1);
+        }
+
+        $sent = TextifyService::notifyUser(
+            $smsTarget,
+            "Your Bustisha password reset code is: {$otp}\nThis code expires in 15 minutes. Do not share it with anyone."
+        );
+
+        if (!$sent) {
+            // If SMS failed to send, remove lock so user is not blocked
+            Cache::forget($lockKey);
+            Cache::forget($otpKey);
+            return response()->json([
+                'message' => 'Failed to send SMS code. Please verify your phone number and try again.',
+            ], 500);
+        }
+
+        return response()->json([
+            'message' => 'Password reset code has been sent to your registered phone number.',
+            'phone'   => $phoneKey,
+        ]);
+    }
+
+    /**
+     * Reset user password using the received OTP code.
+     */
+    public function forgotPasswordReset(Request $request)
+    {
+        $data = $request->validate([
+            'phone'                 => 'required|string',
+            'otp'                   => 'required|string|size:5',
+            'password'              => 'required|string|min:6|confirmed',
+        ]);
+
+        $rawPhone = trim($data['phone']);
+        $cleanPhone = preg_replace('/[^\d+]/', '', $rawPhone);
+        $digitsOnly = ltrim($cleanPhone, '+');
+
+        $user = User::where('phone', $rawPhone)
+            ->orWhere('phone', $cleanPhone)
+            ->orWhere('phone', $digitsOnly)
+            ->orWhere('phone', '+' . $digitsOnly)
+            ->when(str_starts_with($digitsOnly, '0'), function($q) use ($digitsOnly) {
+                $q->orWhere('phone', '255' . substr($digitsOnly, 1))
+                  ->orWhere('phone', '+255' . substr($digitsOnly, 1));
+            })
+            ->when(str_starts_with($digitsOnly, '255'), function($q) use ($digitsOnly) {
+                $q->orWhere('phone', '0' . substr($digitsOnly, 3));
+            })
+            ->first();
+
+        if (!$user) {
+            return response()->json([
+                'message' => 'User account not found.',
+            ], 404);
+        }
+
+        $phoneKey = preg_replace('/[^\d]/', '', $user->phone ?: $digitsOnly);
+        $otpKey = "forgot_pw_otp:{$phoneKey}";
+        $cachedOtp = Cache::get($otpKey);
+
+        if (!$cachedOtp || $cachedOtp !== $data['otp']) {
+            return response()->json([
+                'message' => 'Invalid or expired verification code. Please check the code or request a new one tomorrow.',
+                'errors'  => ['otp' => ['Invalid or expired verification code.']],
+            ], 422);
+        }
+
+        // Clear the OTP
+        Cache::forget($otpKey);
+
+        // Reset password & reactivate account if suspended due to failed logins
+        $user->password = Hash::make($data['password']);
+        $user->failed_login_attempts = 0;
+        if ($user->status === 'suspended') {
+            $user->status = 'active';
+        }
+        $user->save();
+
+        return response()->json([
+            'message' => 'Password reset successfully! You can now sign in with your new password.',
+        ]);
+    }
+
     // ─── Logout ──────────────────────────────────────────────────────────────
 
     public function logout(Request $request)
@@ -201,4 +348,5 @@ class AuthController extends Controller
         return response()->json(['message' => 'Logged out.']);
     }
 }
+
 

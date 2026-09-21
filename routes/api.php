@@ -14,6 +14,9 @@ use Illuminate\Support\Facades\Route;
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/send-otp', [AuthController::class, 'sendOtp']);
+Route::post('/forgot-password/send-otp', [AuthController::class, 'forgotPasswordSendOtp']);
+Route::post('/forgot-password/reset', [AuthController::class, 'forgotPasswordReset']);
+
 
 Route::get('/services', [ServiceController::class, 'index']);
 Route::get('/services/{service}', [ServiceController::class, 'show']);
