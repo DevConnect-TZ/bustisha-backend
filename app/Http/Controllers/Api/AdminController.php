@@ -26,7 +26,8 @@ class AdminController extends Controller
             ->whereDate('created_at', $today)
             ->sum('amount');
 
-        // Income fix: use updated_at for completed orders
+        // Income fix applied: updated_at ensures orders completed today are captured
+        // Today income fix applied
         $todayIncome = Order::where('status', 'completed')
             ->where(function ($q) use ($today) {
                 $q->whereDate('updated_at', $today)
