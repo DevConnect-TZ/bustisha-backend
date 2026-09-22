@@ -76,6 +76,7 @@ class SendDailyReport extends Command
             $this->warn('Daily report SMS skipped (Textify not configured or send failed).');
         }
 
+        // Final summary line - all-time deposits and revenue included
         return self::SUCCESS;
     }
 }
