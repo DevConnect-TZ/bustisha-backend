@@ -19,16 +19,40 @@ class AdminController extends Controller
 {
     public function dashboard()
     {
+        $today = \Illuminate\Support\Carbon::today();
+
+        // Today's deposits: completed transactions created today
+        $todayDeposits = Transaction::where('status', 'completed')
+            ->whereDate('created_at', $today)
+            ->sum('amount');
+
+        // Income fix: use updated_at for completed orders
+        $todayIncome = Order::where('status', 'completed')
+            ->where(function ($q) use ($today) {
+                $q->whereDate('updated_at', $today)
+                  ->orWhereDate('created_at', $today);
+            })
+            ->sum('charge');
+
+        $todayCompletedOrders = Order::where('status', 'completed')
+            ->where(function ($q) use ($today) {
+                $q->whereDate('updated_at', $today)
+                  ->orWhereDate('created_at', $today);
+            })
+            ->count();
+
         return response()->json([
-            'total_orders' => Order::count(),
-            'completed_orders' => Order::where('status', 'completed')->count(),
-            'pending_orders' => Order::where('status', 'pending')->count(),
-            'cancelled_orders' => Order::where('status', 'cancelled')->count(),
-            'total_revenue' => Order::where('status', 'completed')->sum('charge'),
-            'total_users' => User::where('role', 'user')->count(),
-            'total_user_balance' => User::where('role', 'user')->sum('balance'),
-            'active_services' => Service::where('is_active', true)->count(),
-            'open_tickets' => Ticket::where('status', 'open')->count(),
+            'today_deposits'       => (float) $todayDeposits,
+            'today_income'         => (float) $todayIncome,
+            'total_revenue'        => (float) Order::where('status', 'completed')->sum('charge'),
+            'total_orders'         => Order::count(),
+            'completed_orders'     => Order::where('status', 'completed')->count(),
+            'pending_orders'       => Order::where('status', 'pending')->count(),
+            'cancelled_orders'     => Order::where('status', 'cancelled')->count(),
+            'total_users'          => User::where('role', 'user')->count(),
+            'total_user_balance'   => (float) User::where('role', 'user')->sum('balance'),
+            'active_services'      => Service::where('is_active', true)->count(),
+            'open_tickets'         => Ticket::where('status', 'open')->count(),
         ]);
     }
 
