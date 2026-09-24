@@ -14,7 +14,6 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withSchedule(function (Schedule $schedule): void {
-        $schedule->command('accounts:delete-inactive')->daily();
         $schedule->command('orders:check-status')->everyThreeMinutes()->withoutOverlapping();
         $schedule->command('report:daily-sms')->dailyAt('20:00');
     })
